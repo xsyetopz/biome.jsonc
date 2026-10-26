@@ -1,0 +1,32 @@
+{
+	"$schema": "https://www.schemastore.org/tsconfig",
+	"compilerOptions": {
+		"allowArbitraryExtensions": true,
+		"allowImportingTsExtensions": true,
+		"allowJs": true,
+		"allowUmdGlobalAccess": true,
+		"allowUnreachableCode": false,
+		"allowUnusedLabels": false,
+		"checkJs": true,
+		"erasableSyntaxOnly": true,
+		"exactOptionalPropertyTypes": true,
+		"module": "esnext",
+		"moduleDetection": "force",
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitOverride": true,
+		"noImplicitReturns": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noUncheckedIndexedAccess": true,
+		"noUncheckedSideEffectImports": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "esnext",
+		"types": ["bun-types"],
+		"verbatimModuleSyntax": true
+	},
+	"include": ["bin", "templates", "tests"]
+}

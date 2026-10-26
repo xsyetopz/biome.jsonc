@@ -1,0 +1,35 @@
+{
+	"name": "biome-json",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"bin": {
+		"biome-json": "bin/biome-setup.mjs"
+	},
+	"files": [
+		"bin",
+		"plugins",
+		"templates",
+		"catalog.json"
+	],
+	"scripts": {
+		"test": "bun test",
+		"lint": "biome check --error-on-warnings && bun run lint:suppressions",
+		"lint:suppressions": "bun templates/check-suppressions.mjs",
+		"typecheck": "bun check"
+	},
+	"engines": {
+		"node": ">=20",
+		"bun": ">=1.4.4"
+	},
+	"packageManager": "bun@1.4.4",
+	"dependencies": {
+		"@biomejs/biome": "^2.6.3",
+		"@inquirer/prompts": "^8.7.4",
+		"commander": "^15.0.0",
+		"jsonc-parser": "^3.3.1"
+	},
+	"devDependencies": {
+		"bun-types": "^1.4.4"
+	}
+}

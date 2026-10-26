@@ -1,0 +1,280 @@
+{
+	"rules": [
+		{
+			"id": "noGlobalDirnameFilename",
+			"label": "Require import.meta.dirname/filename over __dirname/__filename",
+			"hint": "ESM repos only. Its fix breaks CommonJS files.",
+			"set": {
+				"correctness.noGlobalDirnameFilename": "error"
+			}
+		},
+		{
+			"id": "noConsole",
+			"label": "Ban console.log/debug/trace",
+			"hint": "Skip for CLI tools that print with console.log.",
+			"set": {
+				"suspicious.noConsole": {
+					"level": "error",
+					"options": {
+						"allow": ["error", "warn", "info"]
+					}
+				}
+			}
+		},
+		{
+			"id": "noImportCycles",
+			"label": "Ban import cycles",
+			"hint": "Slower: walks the whole module graph.",
+			"set": {
+				"suspicious.noImportCycles": "error"
+			}
+		},
+		{
+			"id": "noUndeclaredDependencies",
+			"label": "Ban imports missing from the nearest package.json",
+			"hint": "False alarms in monorepos that keep shared deps in the root package.json.",
+			"set": {
+				"correctness.noUndeclaredDependencies": "error"
+			}
+		},
+		{
+			"id": "noBarrelFile",
+			"label": "Ban barrel files (index files that only re-export)",
+			"hint": "For apps. Libraries need an index that re-exports.",
+			"set": {
+				"performance.noBarrelFile": "error"
+			}
+		},
+		{
+			"id": "noReExportAll",
+			"label": "Ban `export * from`",
+			"hint": "For apps. Libraries need an index that re-exports.",
+			"set": {
+				"performance.noReExportAll": "error"
+			}
+		},
+		{
+			"id": "noAwaitInLoops",
+			"label": "Ban await inside loops",
+			"hint": "False alarms on loops that must run in order, such as pagination.",
+			"set": {
+				"performance.noAwaitInLoops": "error"
+			}
+		},
+		{
+			"id": "noUndeclaredVariables",
+			"label": "Ban undeclared variables",
+			"hint": "For JavaScript-only repos. In TypeScript, tsc covers this and ambient globals cause false alarms.",
+			"set": {
+				"correctness.noUndeclaredVariables": "error"
+			}
+		},
+		{
+			"id": "useFilenamingConvention",
+			"label": "Require kebab-case file names",
+			"hint": "Existing repos may need many renames.",
+			"set": {
+				"style.useFilenamingConvention": {
+					"level": "error",
+					"options": {
+						"filenameCases": ["kebab-case"]
+					}
+				}
+			}
+		},
+		{
+			"id": "noDefaultExport",
+			"label": "Ban default exports",
+			"hint": "Not for frameworks that need default exports (Next.js pages, Remix routes, configs).",
+			"set": {
+				"style.noDefaultExport": "error"
+			}
+		},
+		{
+			"id": "noEnum",
+			"label": "Ban TypeScript enums",
+			"hint": "For Node type stripping and erasableSyntaxOnly.",
+			"set": {
+				"style.noEnum": "error"
+			}
+		},
+		{
+			"id": "noShadow",
+			"label": "Ban variable shadowing",
+			"hint": "Strict; flags common patterns such as an inner `data`.",
+			"set": {
+				"suspicious.noShadow": "error"
+			}
+		},
+		{
+			"id": "noFloatingPromises",
+			"label": "Ban unhandled promises (nursery, type-aware)",
+			"hint": "Nursery rules: run `biome migrate --write` after each Biome upgrade, or the config stops loading once a rule is promoted.",
+			"set": {
+				"nursery.noFloatingPromises": "error"
+			}
+		},
+		{
+			"id": "noMisusedPromises",
+			"label": "Ban promises where a value is expected (nursery, type-aware)",
+			"hint": "Nursery rules: run `biome migrate --write` after each Biome upgrade, or the config stops loading once a rule is promoted.",
+			"set": {
+				"nursery.noMisusedPromises": "error"
+			}
+		},
+		{
+			"id": "useExhaustiveSwitchCases",
+			"label": "Require switch cases for every union member (nursery, type-aware)",
+			"hint": "Nursery rules: run `biome migrate --write` after each Biome upgrade, or the config stops loading once a rule is promoted.",
+			"set": {
+				"nursery.useExhaustiveSwitchCases": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightWaitForTimeout",
+			"label": "Playwright: Ban page.waitForTimeout()",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"suspicious.noPlaywrightWaitForTimeout": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightWaitForNavigation",
+			"label": "Playwright: Ban page.waitForNavigation()",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"suspicious.noPlaywrightWaitForNavigation": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightNetworkidle",
+			"label": "Playwright: Ban \"networkidle\" waits",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"suspicious.noPlaywrightNetworkidle": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightPagePause",
+			"label": "Playwright: Ban page.pause()",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"suspicious.noPlaywrightPagePause": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightForceOption",
+			"label": "Playwright: Ban { force: true } on actions",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"suspicious.noPlaywrightForceOption": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightWaitForSelector",
+			"label": "Playwright: Ban page.waitForSelector()",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"style.noPlaywrightWaitForSelector": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightElementHandle",
+			"label": "Playwright: Ban element handles ($, $$)",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"style.noPlaywrightElementHandle": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightEval",
+			"label": "Playwright: Ban $eval and $$eval",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"style.noPlaywrightEval": "error"
+			}
+		},
+		{
+			"id": "noPlaywrightUselessAwait",
+			"label": "Playwright: Ban await on sync Playwright calls",
+			"hint": "For Playwright repos. Fires on Puppeteer code, which has the same method names.",
+			"set": {
+				"complexity.noPlaywrightUselessAwait": "error"
+			}
+		}
+	],
+	"plugins": [
+		{
+			"id": "noFunctionDeclaration",
+			"label": "Prefer `const f = () =>` over `function f()`",
+			"hint": "Skips generators and functions that use `this`. Arrow functions are not hoisted.",
+			"file": "plugins/noFunctionDeclaration.grit"
+		},
+		{
+			"id": "noTypeAssertion",
+			"label": "Ban `as` type assertions (allows `as const`)",
+			"hint": "Strict TypeScript: narrow with checks instead.",
+			"file": "plugins/noTypeAssertion.grit"
+		},
+		{
+			"id": "noDoubleTypeAssertion",
+			"label": "Ban `as unknown as T`",
+			"hint": "Catches the usual escape hatch around type errors.",
+			"file": "plugins/noDoubleTypeAssertion.grit"
+		},
+		{
+			"id": "useStructuredClone",
+			"label": "Ban JSON.parse(JSON.stringify(x))",
+			"hint": "Use structuredClone(x): faster and keeps Dates, Maps, and Sets.",
+			"file": "plugins/useStructuredClone.grit"
+		},
+		{
+			"id": "noSyncCall",
+			"label": "Ban synchronous fs calls (readFileSync and others)",
+			"hint": "Blocks the event loop. Skip for CLI tools and build scripts.",
+			"file": "plugins/noSyncCall.grit"
+		},
+		{
+			"id": "noProcessExit",
+			"label": "Ban process.exit()",
+			"hint": "Set process.exitCode instead, so pending output and cleanup can finish.",
+			"file": "plugins/noProcessExit.grit"
+		},
+		{
+			"id": "noArrayReduce",
+			"label": "Ban Array#reduce",
+			"hint": "Use a for...of loop for readability.",
+			"file": "plugins/noArrayReduce.grit"
+		},
+		{
+			"id": "noPromiseThen",
+			"label": "Ban .then() chains",
+			"hint": "Use async/await.",
+			"file": "plugins/noPromiseThen.grit"
+		},
+		{
+			"id": "noMutableExports",
+			"label": "Ban `export let` and `export var`",
+			"hint": "Mutable live bindings confuse importers.",
+			"file": "plugins/noMutableExports.grit"
+		},
+		{
+			"id": "useSwitchForEqualityChain",
+			"label": "Prefer `switch` over `if`/`else if` chains on one value",
+			"hint": "Flags chains that compare one expression with `===` in two or more branches. Consecutive separate `if` statements are not detected.",
+			"file": "plugins/useSwitchForEqualityChain.grit"
+		}
+	],
+	"guards": [
+		{
+			"id": "noSuppressionComments",
+			"label": "Fail lint on suppression comments",
+			"hint": "biome-ignore, @ts-ignore, @ts-nocheck, @ts-expect-error, eslint-disable. Biome plugins cannot see comments, so this is a script.",
+			"file": "templates/check-suppressions.mjs",
+			"script": {
+				"name": "lint:suppressions",
+				"command": "node .biome/check-suppressions.mjs"
+			}
+		}
+	]
+}

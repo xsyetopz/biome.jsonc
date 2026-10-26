@@ -1,0 +1,64 @@
+// This repo's own config: the shipped template plus every plugin and opt-in rule, so the
+// project runs under the strictest setup it offers. `templates/strict.jsonc` is what users get.
+{
+	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+	"extends": ["./templates/strict.jsonc"],
+	"plugins": [
+		"./plugins/noArrayReduce.grit",
+		"./plugins/noDoubleTypeAssertion.grit",
+		"./plugins/noFunctionDeclaration.grit",
+		"./plugins/noMutableExports.grit",
+		"./plugins/noProcessExit.grit",
+		"./plugins/noPromiseThen.grit",
+		"./plugins/noSyncCall.grit",
+		"./plugins/noTypeAssertion.grit",
+		"./plugins/useStructuredClone.grit",
+		"./plugins/useSwitchForEqualityChain.grit"
+	],
+	"linter": {
+		"rules": {
+			"complexity": {
+				"noPlaywrightUselessAwait": "error"
+			},
+			"correctness": {
+				"noGlobalDirnameFilename": "error",
+				"noUndeclaredDependencies": "error",
+				"noUndeclaredVariables": "error"
+			},
+			"nursery": {
+				"noFloatingPromises": "error",
+				"noMisusedPromises": "error",
+				"useExhaustiveSwitchCases": "error"
+			},
+			"performance": {
+				"noAwaitInLoops": "error",
+				"noBarrelFile": "error",
+				"noReExportAll": "error"
+			},
+			"style": {
+				"noDefaultExport": "error",
+				"noEnum": "error",
+				"noPlaywrightElementHandle": "error",
+				"noPlaywrightEval": "error",
+				"noPlaywrightWaitForSelector": "error",
+				"useFilenamingConvention": {
+					"level": "error",
+					"options": { "filenameCases": ["kebab-case"] }
+				}
+			},
+			"suspicious": {
+				"noConsole": {
+					"level": "error",
+					"options": { "allow": ["error", "warn", "info"] }
+				},
+				"noImportCycles": "error",
+				"noPlaywrightForceOption": "error",
+				"noPlaywrightNetworkidle": "error",
+				"noPlaywrightPagePause": "error",
+				"noPlaywrightWaitForNavigation": "error",
+				"noPlaywrightWaitForTimeout": "error",
+				"noShadow": "error"
+			}
+		}
+	}
+}
