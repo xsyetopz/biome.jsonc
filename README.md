@@ -7,13 +7,13 @@ A strict Biome config with opt-in rules, Grit plugins, and a suppression guard, 
 Humans (interactive checkboxes):
 
 ```sh
-bunx github:xsyetopz/biome-json
+bunx github:xsyetopz/biome.jsonc
 ```
 
 Agents (no prompts; unset lists use the defaults):
 
 ```sh
-bunx github:xsyetopz/biome-json --yes --rules noConsole,noEnum --plugins noTypeAssertion,useStructuredClone --guards all
+bunx github:xsyetopz/biome.jsonc --yes --rules noConsole,noEnum --plugins noTypeAssertion,useStructuredClone --guards all
 ```
 
 Without a TTY the installer behaves like `--yes` and prints the selections it used. `--dry-run` prints the planned writes and changes nothing. In a repo that already has a Biome config, add `--force`.
@@ -37,7 +37,7 @@ An unknown id exits 1 and lists the valid ids. Without `--force`, a non-interact
 ## What the installer decides
 
 - Package manager: the `packageManager` field, then the lockfile, then bun when it is on `PATH` (or runs the installer), else npm. In a workspace root it adds `-w` (pnpm, with `pnpm-workspace.yaml`) or `-W` (yarn classic, with `workspaces`).
-- It installs `@biomejs/biome` and `biome-json@github:xsyetopz/biome-json` as dev dependencies. `biome.jsonc` starts from `templates/local.jsonc`: `$schema`, `extends: ["biome-json/strict"]`, then the selected rules, plugins, and `vcs` settings.
+- It installs `@biomejs/biome` and `biome-json@github:xsyetopz/biome.jsonc` as dev dependencies. `biome.jsonc` starts from `templates/local.jsonc`: `$schema`, `extends: ["biome-json/strict"]`, then the selected rules, plugins, and `vcs` settings.
 - Plugin paths point into `node_modules/biome-json/plugins/`, because Biome resolves plugin paths against the repo, not the extended file. In a workspace member they follow the package to the hoisted `node_modules`.
 - The install runs before any file is written. If it fails, the installer exits 1 with one line and changes nothing.
 - `$schema` is set to the version that `biome --version` reports, so newer CLIs print no version-mismatch diagnostic.

@@ -7,7 +7,7 @@ import { setPath } from "./jsonc-edit.mjs";
 /** @typedef {import("./types.mjs").Context} Context */
 
 export const PACKAGE_NAME = "biome-json";
-export const PACKAGE_SPEC = `${PACKAGE_NAME}@github:xsyetopz/biome-json`;
+export const PACKAGE_SPEC = `${PACKAGE_NAME}@github:xsyetopz/biome.jsonc`;
 export const SHARED = `${PACKAGE_NAME}/strict`;
 export const PLUGIN_DIR = `./node_modules/${PACKAGE_NAME}/plugins`;
 // First line of templates/strict.jsonc, which older installs copied whole.

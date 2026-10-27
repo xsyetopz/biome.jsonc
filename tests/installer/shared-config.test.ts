@@ -64,7 +64,7 @@ describe("shared config", () => {
 
 	test("the install adds the package next to Biome", async () => {
 		const result = await runInstalling(dir, {}, "--dry-run");
-		expect(result.out).toContain("biome-json@github:xsyetopz/biome-json");
+		expect(result.out).toContain("biome-json@github:xsyetopz/biome.jsonc");
 	});
 
 	test("migrates a full template copy to its repo settings only", async () => {
