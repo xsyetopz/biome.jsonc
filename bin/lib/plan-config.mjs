@@ -7,7 +7,7 @@ import {
 	readPackageJson,
 } from "./package-manager.mjs";
 import { ROOT } from "./paths.mjs";
-import { planCopy } from "./plan-files.mjs";
+import { PLUGIN_DIR } from "./shared-config.mjs";
 import { applyVcs } from "./vcs.mjs";
 
 /** @typedef {import("./types.mjs").Context} Context */
@@ -40,8 +40,7 @@ const existingConfigs = async (cwd) => {
 };
 
 /**
- * Plans the config, its plugin files and the backup of an existing config.
- * The config and plugins depend on the backup: refusing it skips them all.
+ * Plans the config and the backup of an existing config; the config depends on the backup.
  * @param {Context} ctx
  * @returns {Promise<Operation[]>}
  */
@@ -62,8 +61,10 @@ export const planConfig = async (ctx) => {
 			names: existing,
 		});
 	}
-	let text = await readText(join(ROOT, "templates", "strict.jsonc"));
-	text = applyRules(text, selected.rules);
+	let text = applyRules(
+		await readText(join(ROOT, "templates", "local.jsonc")),
+		selected.rules,
+	);
 	if (hasNursery(selected)) {
 		ctx.report.notes.push(
 			`Nursery rules selected: Biome is pinned to ~${BIOME_VERSION} because a minor release can promote them and break config loading. Run \`biome migrate --write\` when you upgrade.`,
@@ -76,19 +77,8 @@ export const planConfig = async (ctx) => {
 		);
 	}
 	for (const plugin of selected.plugins) {
-		text = appendPlugin(text, `./.biome/plugins/${plugin.id}.grit`);
+		text = appendPlugin(text, `${PLUGIN_DIR}/${plugin.id}.grit`);
 	}
-	const copies = await Promise.all(
-		selected.plugins.map((plugin) =>
-			planCopy(
-				cwd,
-				plugin.file,
-				join(".biome", "plugins", `${plugin.id}.grit`),
-				gate,
-			),
-		),
-	);
-	ops.push(...copies.flat());
 	ops.push({
 		kind: "write",
 		id: CONFIG_ID,

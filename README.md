@@ -1,6 +1,6 @@
 # Biome-Json
 
-A strict Biome config with opt-in rules, Grit plugins, and a suppression guard, plus an installer that adds them to any Node repo (any framework). `catalog.json` lists every option. The shipped config is `templates/strict.jsonc`; this repo's own `biome.jsonc` extends it and turns on every option.
+A strict Biome config with opt-in rules, Grit plugins, and a suppression guard, plus an installer that adds them to any Node repo (any framework). `catalog.json` lists every option. The shared config is `templates/strict.jsonc`, exported as `biome-json/strict`. Each repo's `biome.jsonc` extends it and holds only that repo's settings, so a rule change ships to every repo with a dependency update. This repo's own `biome.jsonc` extends it and turns on every option.
 
 ## Install
 
@@ -23,11 +23,11 @@ Without a TTY the installer behaves like `--yes` and prints the selections it us
 | Flag | Meaning |
 | --- | --- |
 | `--rules <ids\|all\|none>` | Opt-in rules to enable. Default: none. |
-| `--plugins <ids\|all\|none>` | Grit plugins to copy to `.biome/plugins/`. Default: none. |
+| `--plugins <ids\|all\|none>` | Grit plugins to load from the installed package. Default: none. |
 | `--guards <ids\|all\|none>` | Guard scripts to copy to `.biome/`. Default: all. |
 | `--yes` | No prompts. |
 | `--force` | Overwrite without asking (old Biome config moves to `<name>.bak`). |
-| `--no-install` | Skip installing `@biomejs/biome`. |
+| `--no-install` | Skip installing `@biomejs/biome` and `biome-json`. |
 | `--no-scripts` | Add no scripts to `package.json` (the guard file is still copied). |
 | `--dry-run` | Print planned writes, change nothing. |
 | `--cwd <dir>` | Target directory. Default: the current directory. |
@@ -37,6 +37,8 @@ An unknown id exits 1 and lists the valid ids. Without `--force`, a non-interact
 ## What the installer decides
 
 - Package manager: the `packageManager` field, then the lockfile, then bun when it is on `PATH` (or runs the installer), else npm. In a workspace root it adds `-w` (pnpm, with `pnpm-workspace.yaml`) or `-W` (yarn classic, with `workspaces`).
+- It installs `@biomejs/biome` and `biome-json@github:xsyetopz/biome-json` as dev dependencies. `biome.jsonc` starts from `templates/local.jsonc`: `$schema`, `extends: ["biome-json/strict"]`, then the selected rules, plugins, and `vcs` settings.
+- Plugin paths point into `node_modules/biome-json/plugins/`, because Biome resolves plugin paths against the repo, not the extended file. In a workspace member they follow the package to the hoisted `node_modules`.
 - The install runs before any file is written. If it fails, the installer exits 1 with one line and changes nothing.
 - `$schema` is set to the version that `biome --version` reports, so newer CLIs print no version-mismatch diagnostic.
 - Selecting a `nursery.*` rule installs `@biomejs/biome@~x.y.z` instead of `^x.y.z`, because a minor release can promote the rule and break config loading. Run `biome migrate --write` when you upgrade.

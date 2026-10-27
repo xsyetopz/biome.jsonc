@@ -6,6 +6,10 @@
 	"bin": {
 		"biome-json": "bin/biome-setup.mjs"
 	},
+	"exports": {
+		"./strict": "./templates/strict.jsonc",
+		"./package.json": "./package.json"
+	},
 	"files": [
 		"bin",
 		"plugins",

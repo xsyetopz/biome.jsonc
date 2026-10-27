@@ -1,12 +1,20 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { cleanup, presentPlugins, run, runBiome, tempDir } from "./helpers.ts";
+import {
+	cleanup,
+	linkPackage,
+	presentPlugins,
+	run,
+	runBiome,
+	tempDir,
+} from "./helpers.ts";
 
 let dir = "";
 
 beforeEach(async () => {
 	dir = await tempDir();
+	await linkPackage(dir);
 });
 
 afterAll(cleanup);

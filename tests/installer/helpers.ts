@@ -90,6 +90,12 @@ export const runInstalling = async (
 	});
 };
 
+/** Makes `dir` resolve `biome-json/strict` and its plugins from this checkout. */
+export const linkPackage = async (dir: string): Promise<void> => {
+	await mkdir(join(dir, "node_modules"), { recursive: true });
+	await symlink(repo, join(dir, "node_modules", "biome-json"));
+};
+
 export const runBiome = (cwd: string, ...args: string[]): Promise<Spawned> =>
 	exec([biome, "check", "--error-on-warnings", ...args], cwd);
 

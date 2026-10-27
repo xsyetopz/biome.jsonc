@@ -12,6 +12,7 @@ import { planCopy } from "./plan-files.mjs";
 import { planScripts } from "./plan-scripts.mjs";
 import { conflictDecider, pick } from "./prompts.mjs";
 import { printReport, say } from "./report.mjs";
+import { syncPluginPaths } from "./shared-config.mjs";
 import { createWriter } from "./writer.mjs";
 
 /** @typedef {import("./types.mjs").Catalog} Catalog */
@@ -103,6 +104,7 @@ export const run = async (opts) => {
 	await applyScripts(ctx, accepted);
 	// Without our config, formatting would follow the user's own Biome config.
 	if (configWritten && !opts.dryRun) {
+		await syncPluginPaths(ctx);
 		await syncSchemaVersion(ctx);
 		await formatWrittenFiles(ctx);
 	}

@@ -41,7 +41,7 @@ describe("installer output", () => {
 
 	test("keeps comments and parses", async () => {
 		await run(dir, "--rules", "all");
-		const source = await readRepo("templates", "strict.jsonc");
+		const source = await readRepo("templates", "local.jsonc");
 		const text = await read(dir, "biome.jsonc");
 		const comments = source.match(/^\s*\/\/.*$/gm) ?? [];
 		expect(comments.length).toBeGreaterThan(0);
@@ -68,7 +68,7 @@ describe("installer output", () => {
 		expect(rules.performance.noReExportAll).toBe("error");
 	});
 
-	test("copies selected plugins and registers them", async () => {
+	test("registers selected plugins from the package without copies", async () => {
 		const ids = await presentPlugins();
 		if (ids.length === 0) {
 			return;
@@ -77,8 +77,12 @@ describe("installer output", () => {
 		const plugins = parse(await read(dir, "biome.jsonc")).plugins;
 		await Promise.all(
 			ids.map(async (id) => {
-				expect(await exists(dir, ".biome", "plugins", `${id}.grit`)).toBe(true);
-				expect(plugins).toContain(`./.biome/plugins/${id}.grit`);
+				expect(await exists(dir, ".biome", "plugins", `${id}.grit`)).toBe(
+					false,
+				);
+				expect(plugins).toContain(
+					`./node_modules/biome-json/plugins/${id}.grit`,
+				);
 			}),
 		);
 	});
@@ -109,7 +113,7 @@ describe("installer output", () => {
 
 	test("other projects keep useImportType untouched", async () => {
 		await run(dir);
-		const rules = parse(await read(dir, "biome.jsonc")).linter.rules;
-		expect(rules.style?.useImportType).not.toBe("off");
+		const rules = parse(await read(dir, "biome.jsonc")).linter?.rules;
+		expect(rules?.style?.useImportType).not.toBe("off");
 	});
 });

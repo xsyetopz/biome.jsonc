@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { UserError } from "./errors.mjs";
 import { capture, runInherited } from "./exec.mjs";
 import { ancestors, pathExists, readText } from "./fs-util.mjs";
+import { PACKAGE_SPEC } from "./shared-config.mjs";
 
 /** @typedef {import("./types.mjs").Context} Context */
 /** @typedef {import("./types.mjs").PackageJson} PackageJson */
@@ -184,6 +185,7 @@ export const installBiome = async (ctx) => {
 		...INSTALL_ARGS[pm],
 		...(await workspaceArgs(ctx)),
 		`@biomejs/biome@${biomeRange(selected)}`,
+		PACKAGE_SPEC,
 	];
 	report.install = `${pm} ${args.join(" ")}`;
 	if (opts.dryRun) {
