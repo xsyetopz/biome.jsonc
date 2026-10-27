@@ -1,19 +1,12 @@
 import { rename, writeFile } from "node:fs/promises";
 import { relative } from "node:path";
-import { ensureDir } from "./fs-util.mjs";
+import { ensureDir } from "./fs-util.ts";
+import type { Writer } from "./types.ts";
 
-/** @typedef {import("./types.mjs").Writer} Writer */
-
-/**
- * @param {string} cwd
- * @param {boolean} dryRun
- * @returns {Writer}
- */
-export const createWriter = (cwd, dryRun) => {
-	/** @type {string[]} */
-	const written = [];
-	/** @param {string} file */
-	const rel = (file) => relative(cwd, file) || ".";
+/** Creates a writer that records each written path. In a dry run, it writes nothing to the disk. */
+export const createWriter = (cwd: string, dryRun: boolean): Writer => {
+	const written: string[] = [];
+	const rel = (file: string) => relative(cwd, file) || ".";
 	return {
 		written,
 		async put(file, content) {

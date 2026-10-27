@@ -1,15 +1,14 @@
-/** @typedef {import("./types.mjs").Context} Context */
-/** @typedef {import("./types.mjs").Operation} Operation */
+import type { Context, Operation } from "./types.ts";
 
 /**
  * Makes one decision for all conflicts and returns the operations to apply.
- * A refused conflict is reported as skipped; operations that depend on a refused
- * one are dropped without a report.
- * @param {Context} ctx
- * @param {Operation[]} ops
- * @returns {Promise<Operation[]>}
+ * The function reports a refused conflict as skipped.
+ * It drops operations that depend on a refused conflict without a report.
  */
-export const settle = async (ctx, ops) => {
+export const settle = async (
+	ctx: Context,
+	ops: Operation[],
+): Promise<Operation[]> => {
 	const conflicts = ops.filter((op) => op.conflict);
 	if (conflicts.length === 0) {
 		return ops;
@@ -18,8 +17,7 @@ export const settle = async (ctx, ops) => {
 	const refused = new Set(
 		conflicts.filter((op) => !accepted.has(op.id)).map((op) => op.id),
 	);
-	/** @param {Operation} op */
-	const dropped = (op) => op.after !== null && refused.has(op.after);
+	const dropped = (op: Operation) => op.after !== null && refused.has(op.after);
 	for (const op of conflicts) {
 		if (refused.has(op.id) && !dropped(op)) {
 			ctx.report.skipped.push(op.skip);

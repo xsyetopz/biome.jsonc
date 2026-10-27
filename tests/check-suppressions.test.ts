@@ -1,17 +1,59 @@
-import { describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { afterAll, describe, expect, it } from "bun:test";
+import {
+	chmod,
+	mkdir,
+	mkdtemp,
+	rm,
+	symlink,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { spawn } from "bun";
+import { spawn, which } from "bun";
 
 const script = resolve(
 	import.meta.dir,
 	"..",
-	"templates",
-	"check-suppressions.mjs",
+	"bin",
+	"biome-json-suppressions.mjs",
 );
+const node = which("node");
+const scratch: string[] = [];
 
-const run = async (files: Record<string, string>) => {
+afterAll(async () => {
+	await Promise.all(
+		scratch.map((dir) => rm(dir, { recursive: true, force: true })),
+	);
+});
+
+/** How the test starts the bin: with bun, or by its shebang with `path` as PATH. */
+type Launch = { runtime: "bun" } | { runtime: "shebang"; path: string };
+
+/** Makes a folder with the given executables. Each entry maps a name to a symlink target or a shell script body. */
+const binDir = async (
+	tools: Record<string, { link: string } | { sh: string }>,
+) => {
+	const dir = await mkdtemp(join(tmpdir(), "check-suppressions-bin-"));
+	scratch.push(dir);
+	await Promise.all(
+		Object.entries(tools).map(async ([name, tool]) => {
+			const file = join(dir, name);
+			if ("link" in tool) {
+				await symlink(tool.link, file);
+				return;
+			}
+			await writeFile(file, `#!/bin/sh\n${tool.sh}\n`);
+			await chmod(file, 0o755);
+		}),
+	);
+	return dir;
+};
+
+const run = async (
+	files: Record<string, string>,
+	git = false,
+	launch: Launch = { runtime: "bun" },
+) => {
 	const dir = await mkdtemp(join(tmpdir(), "check-suppressions-"));
 	try {
 		await Promise.all(
@@ -21,8 +63,15 @@ const run = async (files: Record<string, string>) => {
 				await writeFile(target, content);
 			}),
 		);
+		if (git) {
+			await spawn(["git", "init", "-q"], { cwd: dir }).exited;
+		}
 		const result = spawn({
-			cmd: ["node", script, dir],
+			cmd: launch.runtime === "bun" ? ["bun", script, dir] : [script, dir],
+			env:
+				launch.runtime === "bun"
+					? process.env
+					: { ...process.env, PATH: launch.path },
 			stdout: "pipe",
 			stderr: "pipe",
 		});
@@ -37,6 +86,18 @@ const run = async (files: Record<string, string>) => {
 };
 
 describe("check-suppressions", () => {
+	it("skips node_modules and dist in a git repo that does not ignore them", async () => {
+		const hit = "// @ts-ignore\nexport const a = 1;\n";
+		const r = await run(
+			{ "node_modules/x/a.js": hit, "dist/a.js": hit, "src/a.ts": hit },
+			true,
+		);
+		expect(r.status).toBe(1);
+		expect(r.stdout).toContain("src/a.ts:1:");
+		expect(r.stdout).not.toContain("node_modules/");
+		expect(r.stdout).not.toContain("dist/");
+	});
+
 	it("flags a hit at the top of a file", async () => {
 		const r = await run({ "a.ts": "// @ts-ignore\nexport const a = 1;\n" });
 		expect(r.status).toBe(1);
@@ -212,6 +273,53 @@ describe("check-suppressions", () => {
 			"dist/o.js": "// @ts-ignore\n",
 		});
 		expect(r.status).toBe(0);
+	});
+
+	it("checks a dist or .biome folder that is not at a package root", async () => {
+		const hit = "// @ts-ignore\nexport const a = 1;\n";
+		const r = await run({ "src/dist/a.ts": hit, "src/.biome/b.ts": hit }, true);
+		expect(r.status).toBe(1);
+		expect(r.stdout).toContain("src/dist/a.ts:1:");
+		expect(r.stdout).toContain("src/.biome/b.ts:1:");
+	});
+
+	it("skips dist at a workspace package root and node_modules at any depth", async () => {
+		const hit = "// @ts-ignore\n";
+		const r = await run(
+			{
+				"packages/a/package.json": "{}",
+				"packages/a/dist/o.js": hit,
+				"packages/a/src/node_modules/x/i.js": hit,
+			},
+			true,
+		);
+		expect(r.status).toBe(0);
+	});
+
+	it("runs in node by its shebang when bun is not on PATH", async () => {
+		expect(node).not.toBeNull();
+		const tools = await binDir({ node: { link: node ?? "" } });
+		const r = await run({ "a.ts": "// @ts-ignore\n" }, false, {
+			runtime: "shebang",
+			path: `${tools}:/usr/bin:/bin`,
+		});
+		expect(r.status).toBe(1);
+		expect(r.stdout).toContain("a.ts:1: // @ts-ignore");
+	});
+
+	it("hands the guard to bun when node starts it and bun is on PATH", async () => {
+		expect(node).not.toBeNull();
+		const tools = await binDir({
+			node: { link: node ?? "" },
+			bun: { sh: 'echo "fake bun $*"\nexit 7' },
+		});
+		const r = await run({ "a.ts": "export const a = 1;\n" }, false, {
+			runtime: "shebang",
+			path: `${tools}:/usr/bin:/bin`,
+		});
+		expect(r.status).toBe(7);
+		expect(r.stdout).toContain("fake bun ");
+		expect(r.stdout).toContain("check-suppressions.mjs");
 	});
 
 	it("exits 0 for a clean tree", async () => {

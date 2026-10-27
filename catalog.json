@@ -270,10 +270,9 @@
 			"id": "noSuppressionComments",
 			"label": "Fail lint on suppression comments",
 			"hint": "biome-ignore, @ts-ignore, @ts-nocheck, @ts-expect-error, eslint-disable. Biome plugins cannot see comments, so this is a script.",
-			"file": "templates/check-suppressions.mjs",
 			"script": {
 				"name": "lint:suppressions",
-				"command": "node .biome/check-suppressions.mjs"
+				"command": "biome-json-suppressions"
 			}
 		}
 	]

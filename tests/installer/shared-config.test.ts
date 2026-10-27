@@ -25,7 +25,7 @@ afterAll(cleanup);
 const SHARED = "biome-json/strict";
 const PLUGIN = "./node_modules/biome-json/plugins/noArrayReduce.grit";
 
-/** A config as the installer wrote it before `extends`: the whole template, edited. */
+/** A config as the installer wrote it before `extends`. It has the whole template, with edits. */
 const writeOldCopy = async (): Promise<string> => {
 	let text = await readRepo("templates", "strict.jsonc");
 	const set = (path: string[], value: unknown) => {
@@ -149,7 +149,7 @@ describe("shared config", () => {
 		expect(config.extends).toEqual([SHARED, "./base.jsonc"]);
 		expect(config.overrides).toEqual([custom]);
 		expect(config.plugins).toEqual([{ path: "./x.grit" }, PLUGIN]);
-		// The 4 performance rules and noForEach.
+		// These are the 4 performance rules and noForEach.
 		expect(result.out).toContain("lacked now apply: 5");
 	});
 

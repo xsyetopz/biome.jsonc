@@ -1,57 +1,46 @@
 import { join } from "node:path";
-import { pathExists, readText } from "./fs-util.mjs";
-import { appendPlugin, applyRules, setPath } from "./jsonc-edit.mjs";
+import { pathExists, readText } from "./fs-util.ts";
+import { appendPlugin, applyRules, setPath } from "./jsonc-edit.ts";
 import {
 	BIOME_VERSION,
 	hasNursery,
 	readPackageJson,
-} from "./package-manager.mjs";
-import { ROOT } from "./paths.mjs";
+} from "./package-manager.ts";
+import { ROOT } from "./paths.ts";
 import {
 	isOwnConfig,
 	localSettings,
 	PLUGIN_DIR,
 	SHARED,
-} from "./shared-config.mjs";
-import { applyVcs } from "./vcs.mjs";
+} from "./shared-config.ts";
+import type { Context, Operation } from "./types.ts";
+import { applyVcs } from "./vcs.ts";
 
-/** @typedef {import("./types.mjs").Context} Context */
-/** @typedef {import("./types.mjs").Operation} Operation */
-
+/** Operation id of the biome.jsonc write. */
 export const CONFIG_ID = "biome.jsonc";
 const BACKUP_ID = "config-backup";
 const CONFIG_NAMES = ["biome.json", "biome.jsonc"];
 const DECORATOR_FRAMEWORKS = ["@nestjs/core", "@angular/core"];
 const PLUGIN_COPY_RE = /^(?:\.\/)?\.biome\/plugins\/(\w+)\.grit$/;
 
-/**
- * @param {string} cwd
- * @returns {Promise<boolean>}
- */
-const usesDecoratorInjection = async (cwd) => {
+const usesDecoratorInjection = async (cwd: string): Promise<boolean> => {
 	const data = (await readPackageJson(cwd))?.data;
 	const deps = { ...data?.dependencies, ...data?.devDependencies };
 	return DECORATOR_FRAMEWORKS.some((name) => Object.hasOwn(deps, name));
 };
 
-/**
- * @param {string} cwd
- * @returns {Promise<string[]>}
- */
-const existingConfigs = async (cwd) => {
+const existingConfigs = async (cwd: string): Promise<string[]> => {
 	const present = await Promise.all(
 		CONFIG_NAMES.map((name) => pathExists(join(cwd, name))),
 	);
 	return CONFIG_NAMES.filter((_name, index) => present[index]);
 };
 
-/**
- * The config Biome loads (biome.json before biome.jsonc), when this installer wrote it.
- * @param {string} cwd
- * @param {string[]} names
- * @returns {Promise<{ name: string, text: string } | undefined>}
- */
-const ownConfig = async (cwd, names) => {
+/** Gives the config that Biome loads, when this installer wrote it. Biome loads biome.json before biome.jsonc. */
+const ownConfig = async (
+	cwd: string,
+	names: string[],
+): Promise<{ name: string; text: string } | undefined> => {
 	const name = names[0];
 	if (name === undefined) {
 		return;
@@ -60,25 +49,23 @@ const ownConfig = async (cwd, names) => {
 	return isOwnConfig(text) ? { name, text } : undefined;
 };
 
-/**
- * @param {unknown} entry
- * @returns {string | undefined} the plugin id of a `.biome/plugins/` copy
- */
-const copyId = (entry) =>
+/** Gives the plugin id of a `.biome/plugins/` copy. */
+const copyId = (entry: unknown): string | undefined =>
 	typeof entry === "string" ? entry.match(PLUGIN_COPY_RE)?.[1] : undefined;
 
-/**
- * Points a `.biome/plugins/` copy that still matches its packaged plugin at the package.
- * @param {string} cwd
- * @param {unknown[]} entries
- * @returns {Promise<unknown[]>}
- */
-const packagePlugins = async (cwd, entries) =>
+/** Points a `.biome/plugins/` copy at the package, when the copy is missing or still matches its packaged plugin. */
+const packagePlugins = async (
+	cwd: string,
+	entries: unknown[],
+): Promise<unknown[]> =>
 	await Promise.all(
 		entries.map(async (entry) => {
 			const id = copyId(entry);
+			if (id === undefined) {
+				return entry;
+			}
 			const source = join(ROOT, "plugins", `${id}.grit`);
-			if (id === undefined || !(await pathExists(source))) {
+			if (!(await pathExists(source))) {
 				return entry;
 			}
 			const copy = join(cwd, `${entry}`);
@@ -89,14 +76,12 @@ const packagePlugins = async (cwd, entries) =>
 		}),
 	);
 
-/**
- * Carries the repo's own settings and plugins of an old config onto `base`.
- * @param {string} cwd
- * @param {{ name: string, text: string }} own
- * @param {string} base
- * @returns {Promise<{ text: string, kept: unknown[], note: string }>}
- */
-const migrate = async (cwd, own, base) => {
+/** Carries the own settings and plugins of the repo from an old config onto `base`. */
+const migrate = async (
+	cwd: string,
+	own: { name: string; text: string },
+	base: string,
+): Promise<{ text: string; kept: unknown[]; note: string }> => {
 	const local = localSettings(
 		own.text,
 		await readText(join(ROOT, "templates", "strict.jsonc")),
@@ -118,18 +103,15 @@ const migrate = async (cwd, own, base) => {
 };
 
 /**
- * Plans the config and the backup of an existing config; the config depends on the backup.
- * A config this installer wrote keeps its own settings on top of `extends`.
- * @param {Context} ctx
- * @returns {Promise<Operation[]>}
+ * Plans the config and the backup of an existing config. The config depends on the backup.
+ * A config that this installer wrote keeps its own settings on top of `extends`.
  */
-export const planConfig = async (ctx) => {
+export const planConfig = async (ctx: Context): Promise<Operation[]> => {
 	const { cwd, selected } = ctx;
 	const existing = await existingConfigs(cwd);
 	const gate = existing.length > 0 ? BACKUP_ID : null;
 	const own = await ownConfig(cwd, existing);
-	/** @type {Operation[]} */
-	const ops = [];
+	const ops: Operation[] = [];
 	if (gate) {
 		ops.push({
 			kind: "backup",
@@ -158,7 +140,7 @@ export const planConfig = async (ctx) => {
 			"style.useImportType is off: NestJS/Angular inject constructor parameters by their runtime class, and the rule's fix turns those imports into `import type`, which breaks injection.",
 		);
 	}
-	// An edited copy of a selected plugin stays in use instead of the packaged one.
+	// An edited copy of a selected plugin stays in use instead of the packaged plugin.
 	for (const plugin of selected.plugins) {
 		if (!kept.some((entry) => copyId(entry) === plugin.id)) {
 			text = appendPlugin(text, `${PLUGIN_DIR}/${plugin.id}.grit`);

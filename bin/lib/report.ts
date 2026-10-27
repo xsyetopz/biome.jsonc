@@ -1,18 +1,14 @@
-import { describe } from "./catalog.mjs";
-import { EXEC } from "./package-manager.mjs";
+import { describe } from "./catalog.ts";
+import { EXEC } from "./package-manager.ts";
+import type { Context } from "./types.ts";
 
-/** @typedef {import("./types.mjs").Context} Context */
-
-/** @param {string} [line] */
+/** Writes one line to stdout. */
 export const say = (line = "") => {
 	process.stdout.write(`${line}\n`);
 };
 
-/**
- * @param {Context} ctx
- * @param {boolean} configWritten
- */
-export const printReport = (ctx, configWritten) => {
+/** Prints the result of the run: written files, install command, notes, skips, selections, and the next command. */
+export const printReport = (ctx: Context, configWritten: boolean) => {
 	const { writer, report, pm, opts, selected } = ctx;
 	if (opts.dryRun) {
 		say("Planned writes (dry run, nothing changed):");

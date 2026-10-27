@@ -21,15 +21,13 @@ beforeEach(async () => {
 afterAll(cleanup);
 
 describe("installer output", () => {
-	test("writes config, guard and scripts", async () => {
+	test("writes config and scripts, and runs the guard from the package", async () => {
 		const result = await run(dir);
 		expect(result.code).toBe(0);
 		expect(await exists(dir, "biome.jsonc")).toBe(true);
-		expect(await exists(dir, ".biome", "check-suppressions.mjs")).toBe(true);
+		expect(await exists(dir, ".biome")).toBe(false);
 		const pkg = JSON.parse(await read(dir, "package.json"));
-		expect(pkg.scripts["lint:suppressions"]).toBe(
-			"node .biome/check-suppressions.mjs",
-		);
+		expect(pkg.scripts["lint:suppressions"]).toBe("biome-json-suppressions");
 		expect(pkg.scripts.lint).toContain("biome check --error-on-warnings");
 		expect(pkg.scripts.lint).toContain("run lint:suppressions");
 		expect(pkg.scripts["lint:fix"]).toBe(
@@ -37,6 +35,14 @@ describe("installer output", () => {
 		);
 		expect(pkg.scripts["lint:ci"]).toContain("biome ci");
 		expect(result.out).toContain("biome.jsonc");
+	});
+
+	test("the package exposes the guard as a bin that runs without bun", async () => {
+		const own = JSON.parse(await readRepo("package.json"));
+		const file = own.bin["biome-json-suppressions"];
+		expect(own.files).toContain(file.split("/")[0]);
+		expect(file).toEndWith(".mjs");
+		expect((await readRepo(file)).split("\n")[0]).toBe("#!/usr/bin/env node");
 	});
 
 	test("keeps comments and parses", async () => {

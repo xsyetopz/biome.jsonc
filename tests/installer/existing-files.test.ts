@@ -53,9 +53,7 @@ describe("installer with existing files", () => {
 	});
 
 	test("omits the Written header when nothing was written", async () => {
-		await mkdir(join(dir, ".biome"));
 		await writeFile(join(dir, "biome.json"), '{"old":true}\n');
-		await writeFile(join(dir, ".biome", "check-suppressions.mjs"), "// mine\n");
 		const result = await run(dir, "--no-scripts");
 		expect(result.code).toBe(0);
 		expect(result.out).toContain("Skipped:");
@@ -63,25 +61,44 @@ describe("installer with existing files", () => {
 	});
 
 	test("skips every conflict without --force and reports each", async () => {
-		await mkdir(join(dir, ".biome"));
 		await writeFile(join(dir, "biome.json"), '{"old":true}\n');
-		await writeFile(join(dir, ".biome", "check-suppressions.mjs"), "// mine\n");
 		const pkg = { name: "x", scripts: { lint: "eslint .", "lint:fix": "fix" } };
 		await writeFile(join(dir, "package.json"), JSON.stringify(pkg));
 		const result = await run(dir);
 		expect(result.code).toBe(0);
 		expect(result.out).toContain("Skipped: biome.jsonc, rules and plugins");
-		expect(result.out).toContain(
-			"Skipped: .biome/check-suppressions.mjs: exists",
-		);
 		expect(result.out).toContain("Skipped: script lint: differs");
 		expect(result.out).toContain("Skipped: script lint:fix: differs");
 		expect(await read(dir, "biome.json")).toBe('{"old":true}\n');
 		expect(await exists(dir, "biome.jsonc")).toBe(false);
-		expect(await read(dir, ".biome/check-suppressions.mjs")).toBe("// mine\n");
 		const scripts = JSON.parse(await read(dir, "package.json")).scripts;
 		expect(scripts.lint).toBe("eslint .");
 		expect(scripts["lint:fix"]).toBe("fix");
+	});
+
+	test("replaces the guard script of an older install and keeps its copy", async () => {
+		await mkdir(join(dir, ".biome"));
+		await writeFile(join(dir, ".biome", "check-suppressions.mjs"), "// old\n");
+		const old = "node .biome/check-suppressions.mjs";
+		const pkg = { name: "x", scripts: { "lint:suppressions": old } };
+		await writeFile(join(dir, "package.json"), JSON.stringify(pkg));
+		const result = await run(dir);
+		expect(result.code).toBe(0);
+		const scripts = JSON.parse(await read(dir, "package.json")).scripts;
+		expect(scripts["lint:suppressions"]).toBe("biome-json-suppressions");
+		expect(await read(dir, ".biome/check-suppressions.mjs")).toBe("// old\n");
+		expect(result.out).toContain(
+			"Note: .biome/check-suppressions.mjs is no longer needed",
+		);
+	});
+
+	test("keeps another script that runs the old guard copy without --force", async () => {
+		const old = "node .biome/check-suppressions.mjs";
+		const pkg = { name: "x", scripts: { lint: old } };
+		await writeFile(join(dir, "package.json"), JSON.stringify(pkg));
+		const result = await run(dir);
+		expect(result.out).toContain("Skipped: script lint: differs");
+		expect(JSON.parse(await read(dir, "package.json")).scripts.lint).toBe(old);
 	});
 
 	test("keeps an existing .bak and picks a free backup name", async () => {

@@ -1,17 +1,21 @@
-import { supportsErrorOnWarnings } from "./biome-bin.mjs";
-import { readPackageJson } from "./package-manager.mjs";
+import { join } from "node:path";
+import { supportsErrorOnWarnings } from "./biome-bin.ts";
+import { pathExists } from "./fs-util.ts";
+import { readPackageJson } from "./package-manager.ts";
+import type { Context, Operation } from "./types.ts";
 
-/** @typedef {import("./types.mjs").Context} Context */
-/** @typedef {import("./types.mjs").Operation} Operation */
+// Older installs copied the guard into the repo. They ran it from there.
+const OLD_GUARD_COPY = ".biome/check-suppressions.mjs";
+const OLD_SCRIPTS = new Set([
+	`node ${OLD_GUARD_COPY}`,
+	`bun ${OLD_GUARD_COPY}`,
+]);
 
-/**
- * @param {Context} ctx
- * @returns {Promise<Record<string, string>>}
- */
-const desiredScripts = async (ctx) => {
+const desiredScripts = async (
+	ctx: Context,
+): Promise<Record<string, string>> => {
 	const { pm, selected, report } = ctx;
-	/** @type {Record<string, string>} */
-	const scripts = {};
+	const scripts: Record<string, string> = {};
 	if (!ctx.opts.scripts) {
 		return scripts;
 	}
@@ -40,15 +44,22 @@ const desiredScripts = async (ctx) => {
 };
 
 /**
- * Plans the script changes; replacing a differing script is a conflict.
- * @param {Context} ctx
- * @returns {Promise<Operation[]>}
+ * Plans the script changes.
+ * Replacing a script that differs is a conflict.
+ * The exception is a `lint:suppressions` script that an older install wrote.
  */
-export const planScripts = async (ctx) => {
+export const planScripts = async (ctx: Context): Promise<Operation[]> => {
+	if (
+		ctx.selected.guards.length > 0 &&
+		(await pathExists(join(ctx.cwd, OLD_GUARD_COPY)))
+	) {
+		ctx.report.notes.push(
+			`${OLD_GUARD_COPY} is no longer needed once \`lint:suppressions\` runs \`biome-json-suppressions\` from the package: then delete the copy.`,
+		);
+	}
 	const wanted = await desiredScripts(ctx);
 	const current = (await readPackageJson(ctx.cwd))?.data.scripts ?? {};
-	/** @type {Operation[]} */
-	const ops = [];
+	const ops: Operation[] = [];
 	for (const [name, command] of Object.entries(wanted)) {
 		const existing = current[name];
 		if (existing !== command) {
@@ -57,7 +68,9 @@ export const planScripts = async (ctx) => {
 				id: `script:${name}`,
 				name,
 				command,
-				conflict: existing !== undefined,
+				conflict:
+					existing !== undefined &&
+					!(name === "lint:suppressions" && OLD_SCRIPTS.has(existing)),
 				label: `script ${name}: "${existing}" -> "${command}"`,
 				skip: `script ${name}: differs (use --force)`,
 				after: null,

@@ -1,32 +1,32 @@
 import { join } from "node:path";
-import { UserError } from "./errors.mjs";
-import { capture, runInherited } from "./exec.mjs";
-import { ancestors, pathExists, readText } from "./fs-util.mjs";
-import { PACKAGE_SPEC } from "./shared-config.mjs";
+import { UserError } from "./errors.ts";
+import { runInherited } from "./exec.ts";
+import { ancestors, pathExists, readText } from "./fs-util.ts";
+import { PACKAGE_SPEC } from "./shared-config.ts";
+import type {
+	Context,
+	PackageJson,
+	PackageManager,
+	Selected,
+} from "./types.ts";
 
-/** @typedef {import("./types.mjs").Context} Context */
-/** @typedef {import("./types.mjs").PackageJson} PackageJson */
-/** @typedef {import("./types.mjs").PackageManager} PackageManager */
-/** @typedef {import("./types.mjs").Selected} Selected */
-
+/** Version of Biome that the installer pins. */
 export const BIOME_VERSION = "2.6.3";
 const INDENT_RE = /^([ \t]+)"/m;
-/** @type {Record<PackageManager, string[]>} */
-const INSTALL_ARGS = {
+const INSTALL_ARGS: Record<PackageManager, string[]> = {
 	npm: ["install", "-D"],
 	pnpm: ["add", "-D"],
 	yarn: ["add", "-D"],
 	bun: ["add", "-d"],
 };
-/** @type {Record<PackageManager, string>} */
-export const EXEC = {
+/** Command that runs a package binary, for each package manager. */
+export const EXEC: Record<PackageManager, string> = {
 	npm: "npx",
 	pnpm: "pnpm exec",
 	yarn: "yarn",
 	bun: "bunx",
 };
-/** @type {[string, PackageManager][]} */
-const LOCKS = [
+const LOCKS: [string, PackageManager][] = [
 	["bun.lock", "bun"],
 	["bun.lockb", "bun"],
 	["pnpm-lock.yaml", "pnpm"],
@@ -34,32 +34,27 @@ const LOCKS = [
 	["package-lock.json", "npm"],
 ];
 
-/**
- * @param {string} name
- * @returns {name is PackageManager}
- */
-const isPackageManager = (name) => Object.hasOwn(INSTALL_ARGS, name);
+const isPackageManager = (name: string): name is PackageManager =>
+	Object.hasOwn(INSTALL_ARGS, name);
 
-/**
- * @param {unknown} value
- * @returns {boolean}
- */
-const isPlainObject = (value) =>
+const isPlainObject = (value: unknown): boolean =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
- * @param {string} cwd
- * @returns {Promise<{ data: PackageJson, indent: string } | null>}
+ * Reads the package.json of a directory and checks its shape.
+ * @returns The parsed data with its indent, or null when the file does not exist.
+ * @throws {UserError} When the file is not valid JSON, is not a JSON object, or has a `scripts` field that is not a JSON object.
  */
-export const readPackageJson = async (cwd) => {
+export const readPackageJson = async (
+	cwd: string,
+): Promise<{ data: PackageJson; indent: string } | null> => {
 	const file = join(cwd, "package.json");
 	if (!(await pathExists(file))) {
 		return null;
 	}
 	const text = await readText(file);
 	const indent = text.match(INDENT_RE)?.[1] ?? "\t";
-	/** @type {PackageJson} */
-	let data;
+	let data: PackageJson;
 	try {
 		data = JSON.parse(text);
 	} catch (error) {
@@ -79,25 +74,15 @@ export const readPackageJson = async (cwd) => {
 	return { data, indent };
 };
 
-/** @returns {Promise<boolean>} */
-const bunOnPath = async () => {
-	try {
-		await capture("bun", ["--version"], process.cwd());
-		return true;
-	} catch {
-		return false;
-	}
-};
-
 /**
- * Looks for one directory's signals: the packageManager field, a lockfile, then a
- * workspace marker. Only cwd's own package.json may fail the run.
- * @param {string} dir
- * @param {boolean} strict
- * @returns {Promise<PackageManager | null>}
+ * Checks one directory for the packageManager field, then a lockfile, then a workspace marker.
+ * Only the package.json of cwd may fail the run.
  */
-const detectIn = async (dir, strict) => {
-	let field;
+const detectIn = async (
+	dir: string,
+	strict: boolean,
+): Promise<PackageManager | null> => {
+	let field: string | undefined;
 	try {
 		field = (await readPackageJson(dir))?.data.packageManager;
 	} catch (error) {
@@ -120,45 +105,35 @@ const detectIn = async (dir, strict) => {
 };
 
 /**
- * Walks up from cwd so a workspace member follows its root.
- * @param {string} cwd
- * @returns {Promise<PackageManager>}
+ * Detects the package manager of the project.
+ * It searches cwd and then its parent folders, so a workspace member follows its root.
+ * @returns The first package manager that it finds, or `bun` when it finds none.
+ * @throws {UserError} When the package.json of cwd is not valid.
  */
-export const detectPackageManager = async (cwd) => {
+export const detectPackageManager = async (
+	cwd: string,
+): Promise<PackageManager> => {
 	const found = await Promise.all(
 		ancestors(cwd).map((dir) => detectIn(dir, dir === cwd)),
 	);
-	const nearest = found.find((name) => name !== null);
-	if (nearest) {
-		return nearest;
-	}
-	return process.versions.bun || (await bunOnPath()) ? "bun" : "npm";
+	return found.find((name) => name !== null) ?? "bun";
 };
 
-/**
- * @param {Selected} selected
- * @returns {boolean}
- */
-export const hasNursery = (selected) =>
+/** Checks if a selected rule sets a nursery rule. */
+export const hasNursery = (selected: Selected): boolean =>
 	selected.rules.some((rule) =>
 		Object.keys(rule.set).some((key) => key.startsWith("nursery.")),
 	);
 
 /**
- * Nursery rules can be promoted in a minor release, which breaks config loading,
- * so they pin the minor version.
- * @param {Selected} selected
- * @returns {string}
+ * Gives the version range of Biome to install.
+ * A minor release can promote nursery rules. This promotion breaks config loading. So nursery rules pin the minor version.
  */
-export const biomeRange = (selected) =>
+export const biomeRange = (selected: Selected): string =>
 	`${hasNursery(selected) ? "~" : "^"}${BIOME_VERSION}`;
 
-/**
- * Workspace roots need a flag to accept a dependency: pnpm `-w`, yarn classic `-W`.
- * @param {Context} ctx
- * @returns {Promise<string[]>}
- */
-const workspaceArgs = async ({ cwd, pm }) => {
+/** A workspace root needs a flag to accept a dependency: `-w` for pnpm, `-W` for yarn classic. */
+const workspaceArgs = async ({ cwd, pm }: Context): Promise<string[]> => {
 	if (pm === "pnpm") {
 		return (await pathExists(join(cwd, "pnpm-workspace.yaml"))) ? ["-w"] : [];
 	}
@@ -176,10 +151,10 @@ const workspaceArgs = async ({ cwd, pm }) => {
 };
 
 /**
- * @param {Context} ctx
- * @returns {Promise<void>}
+ * Installs Biome and this package with the package manager. In a dry run, it only records the command.
+ * @throws {UserError} When the install command fails or the package manager is not on PATH.
  */
-export const installBiome = async (ctx) => {
+export const installBiome = async (ctx: Context): Promise<void> => {
 	const { cwd, pm, opts, report, selected } = ctx;
 	const args = [
 		...INSTALL_ARGS[pm],

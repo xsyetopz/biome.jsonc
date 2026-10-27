@@ -1,15 +1,11 @@
 import { realpath } from "node:fs/promises";
 import { relative, sep } from "node:path";
-import { capture } from "./exec.mjs";
-import { setPath } from "./jsonc-edit.mjs";
+import { capture } from "./exec.ts";
+import { setPath } from "./jsonc-edit.ts";
 
 const REMOTE_PREFIX_RE = /^[^/]+\//;
 
-/**
- * @param {string} cwd
- * @returns {Promise<string | null>}
- */
-const gitDefaultBranch = async (cwd) => {
+const gitDefaultBranch = async (cwd: string): Promise<string | null> => {
 	try {
 		const ref = (
 			await capture(
@@ -24,11 +20,7 @@ const gitDefaultBranch = async (cwd) => {
 	}
 };
 
-/**
- * @param {string} cwd
- * @returns {Promise<string | null>}
- */
-const gitTopLevel = async (cwd) => {
+const gitTopLevel = async (cwd: string): Promise<string | null> => {
 	try {
 		const top = (
 			await capture("git", ["rev-parse", "--show-toplevel"], cwd)
@@ -40,13 +32,13 @@ const gitTopLevel = async (cwd) => {
 };
 
 /**
- * Inside a git repo, `vcs.root` points Biome at the top level when the config sits
- * in a package below it, so the root .gitignore still applies.
- * @param {string} text
- * @param {string} cwd
- * @returns {Promise<string>}
+ * Sets the vcs options of the config text.
+ * Outside git, it sets `vcs.enabled` to false.
+ * In a git repo, `vcs.root` points Biome at the top level when the config is in a package below it.
+ * Then the root .gitignore still applies.
+ * When `origin/HEAD` exists, it also sets `vcs.defaultBranch` to that branch.
  */
-export const applyVcs = async (text, cwd) => {
+export const applyVcs = async (text: string, cwd: string): Promise<string> => {
 	const top = await gitTopLevel(cwd);
 	if (top === null) {
 		return setPath(text, ["vcs", "enabled"], false);

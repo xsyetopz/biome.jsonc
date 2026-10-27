@@ -1,21 +1,33 @@
-#!/usr/bin/env node
-// Fails when a source file holds a lint or type suppression comment.
-// Usage: node .biome/check-suppressions.mjs [rootDir]
+/**
+ * Checks source files for lint and type suppression comments.
+ * The bin `biome-json-suppressions` runs this file with bun or node.
+ * This file is plain JavaScript because node does not strip types from a file in node_modules.
+ * Usage: check-suppressions.mjs [rootDir]
+ * The exit code is 1 when the check finds a suppression comment.
+ */
 import { execFile } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
+/** @typedef {{ at: number, text: string }} Comment */
+/** @typedef {(src: string, from: number, to: number) => Comment[]} Scanner */
+/** @typedef {{ found: Comment[], braces: number[], expr: boolean }} JsState */
+
 const JS = ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"];
 const HTML = ["html", "htm", "vue", "svelte", "astro"];
-const SKIPPED_DIRS = new Set(["node_modules", ".git", "dist"]);
+// The check skips these folders at any depth.
+const SKIPPED_DIRS = new Set(["node_modules", ".git"]);
+// The check skips these folders only at a package root: the root, or a folder with a package.json.
+const PACKAGE_OUTPUT_DIRS = new Set(["dist", ".biome"]);
 const DIRECTIVE =
 	/^[\s*]*(?:biome-ignore|@ts-ignore|@ts-nocheck|@ts-expect-error|eslint-disable|oxlint-disable)/;
 const MARKUP_OPENER = /<!--|\{\/\*|<(script|style)\b[^>]*>/gi;
-const MARKUP_CLOSER = /** @type {Record<string, string>} */ ({
+/** @type {Record<string, string>} */
+const MARKUP_CLOSER = {
 	"<!--": "-->",
 	"{/*": "*/",
-});
+};
 const KEYWORDS = new Set(["return", "typeof", "case", "in", "of", "delete"]);
 const CLOSERS = new Set([")", "]"]);
 const IDENT_CHAR = /[\w$]/;
@@ -28,11 +40,7 @@ const execFileAsync = promisify(execFile);
 const root = resolve(process.argv[2] ?? process.cwd());
 
 /**
- * @typedef {{ at: number, text: string }} Comment
- * @typedef {(src: string, from: number, to: number) => Comment[]} Scanner
- */
-
-/**
+ * Returns the file extension in lowercase, or an empty string when the name has no dot.
  * @param {string} file
  * @returns {string}
  */
@@ -42,13 +50,40 @@ const extensionOf = (file) => {
 };
 
 /**
+ * Gives the folders that hold a package.json, and the root as "".
+ * @param {string[]} files
+ * @returns {Set<string>}
+ */
+const packageRootsOf = (files) =>
+	new Set([
+		"",
+		...files
+			.map((file) => file.split(PATH_SEPARATOR))
+			.filter((parts) => parts.at(-1) === "package.json")
+			.map((parts) => parts.slice(0, -1).join("/")),
+	]);
+
+/**
+ * Tells whether a folder of the file path is a skipped folder.
+ * Git also lists files in these folders when the repo does not ignore them.
  * @param {string} file
+ * @param {Set<string>} packageRoots
  * @returns {boolean}
  */
-const isInsideBiomeDir = (file) =>
-	file.split(PATH_SEPARATOR).includes(".biome");
+const isInSkippedDir = (file, packageRoots) => {
+	const dirs = file.split(PATH_SEPARATOR).slice(0, -1);
+	return dirs.some(
+		(dir, index) =>
+			SKIPPED_DIRS.has(dir) ||
+			(PACKAGE_OUTPUT_DIRS.has(dir) &&
+				packageRoots.has(dirs.slice(0, index).join("/"))),
+	);
+};
 
-/** @returns {Promise<string[] | null>} */
+/**
+ * Lists the files that Git knows, or returns null when root is not in a Git work tree or Git fails.
+ * @returns {Promise<string[] | null>}
+ */
 const gitFiles = async () => {
 	try {
 		const inside = await execFileAsync(
@@ -71,6 +106,7 @@ const gitFiles = async () => {
 };
 
 /**
+ * Lists the files below dir and skips the skipped folders.
  * @param {string} dir
  * @returns {Promise<string[]>}
  */
@@ -89,11 +125,14 @@ const walk = async (dir) => {
 	return nested.flat();
 };
 
-/** @returns {Promise<string[]>} */
+/**
+ * Lists the files with Git, or walks the folder tree when Git cannot list them.
+ * @returns {Promise<string[]>}
+ */
 const listFiles = async () => (await gitFiles()) ?? walk(root);
 
 /**
- * Returns the index of the closing marker, or `to` when it is missing.
+ * Returns the index of the closing marker, or `to` when the marker is missing.
  * @param {string} src
  * @param {string} close
  * @param {number} from
@@ -106,7 +145,7 @@ const closeAt = (src, close, from, to) => {
 };
 
 /**
- * Reads a line comment (when `line` is set) or a block comment at index i.
+ * Reads a line comment at index i when `line` has text, or a block comment when `block` is true.
  * @param {string} src
  * @param {number} i
  * @param {number} to
@@ -131,7 +170,7 @@ const readComment = (src, i, to, line, block) => {
 };
 
 /**
- * Returns the index after a quoted string; an unterminated one ends at the line break.
+ * Returns the index after a quoted string. An unterminated string ends at the line break.
  * @param {string} src
  * @param {number} from
  * @param {string} quote
@@ -150,7 +189,7 @@ const skipQuoted = (src, from, quote, to) => {
 };
 
 /**
- * Returns the index after a string at i, or i when none starts there.
+ * Returns the index after a string at i, or i when no string starts there.
  * @param {string} src
  * @param {number} i
  * @param {number} to
@@ -187,7 +226,7 @@ const skipUrl = (src, i, to) => {
 };
 
 /**
- * Scans CSS, SCSS, JSON, or GraphQL text, which only differ by comment syntax.
+ * Creates a scanner for CSS, SCSS, JSON, or GraphQL text. These formats differ only in their comment syntax.
  * @param {string} line
  * @param {boolean} block
  * @returns {Scanner}
@@ -210,7 +249,7 @@ const simpleScanner = (line, block) => (src, from, to) => {
 };
 
 /**
- * Returns the index after a regex literal that starts at `from`, past the slash.
+ * Returns the index after a regex literal that starts at `from`, after the slash.
  * @param {string} src
  * @param {number} from
  * @param {number} to
@@ -235,7 +274,7 @@ const skipRegex = (src, from, to) => {
 };
 
 /**
- * Returns the index after template text, and whether it stopped at a `${`.
+ * Returns the index after template text, and whether the scan stopped at a `${`.
  * @param {string} src
  * @param {number} from
  * @param {number} to
@@ -256,11 +295,7 @@ const skipTemplate = (src, from, to) => {
 };
 
 /**
- * @typedef {{ found: Comment[], braces: number[], expr: boolean }} JsState
- */
-
-/**
- * Skips template text from `start`, and enters a `${` interpolation when one opens.
+ * Skips template text from `start`. Enters a `${` interpolation when one opens.
  * @param {string} src
  * @param {number} start
  * @param {number} to
@@ -277,7 +312,7 @@ const jsTemplate = (src, start, to, state) => {
 };
 
 /**
- * Handles a comment, string, template, or regex at i, and returns the next index or -1.
+ * Handles a comment, string, template, or regex at i. Returns the next index, or -1.
  * @param {string} src
  * @param {number} i
  * @param {number} to
@@ -306,7 +341,7 @@ const jsLiteral = (src, i, to, state) => {
 };
 
 /**
- * Tells whether i starts a postfix `++` or `--`, which leaves a value behind.
+ * Tells whether i starts a postfix `++` or `--`. A postfix operator leaves a value behind.
  * @param {string} src
  * @param {number} i
  * @param {JsState} state
@@ -351,7 +386,10 @@ const jsCode = (src, i, to, state) => {
 	return i + 1;
 };
 
-/** @type {Scanner} */
+/**
+ * Scans JavaScript text for comments.
+ * @type {Scanner}
+ */
 const jsScanner = (src, from, to) => {
 	/** @type {JsState} */
 	const state = { found: [], braces: [], expr: true };
@@ -365,7 +403,10 @@ const jsScanner = (src, from, to) => {
 
 const cssScanner = simpleScanner("", true);
 
-/** @type {Scanner} */
+/**
+ * Scans HTML-like text, with its script and style blocks, for comments.
+ * @type {Scanner}
+ */
 const htmlScanner = (src, from, to) => {
 	/** @type {Comment[]} */
 	const found = [];
@@ -398,17 +439,22 @@ const htmlScanner = (src, from, to) => {
 	return found;
 };
 
+/** @type {[string[], Scanner][]} */
+const SCANNER_GROUPS = [
+	[JS, jsScanner],
+	[HTML, htmlScanner],
+	[["css"], cssScanner],
+	[["scss"], simpleScanner("//", true)],
+	[["json", "jsonc"], simpleScanner("//", true)],
+	[["graphql", "gql"], simpleScanner("#", false)],
+];
 /** @type {Map<string, Scanner>} */
-const SCANNERS = new Map(
-	/** @type {[string[], Scanner][]} */ ([
-		[JS, jsScanner],
-		[HTML, htmlScanner],
-		[["css"], cssScanner],
-		[["scss"], simpleScanner("//", true)],
-		[["json", "jsonc"], simpleScanner("//", true)],
-		[["graphql", "gql"], simpleScanner("#", false)],
-	]).flatMap(([exts, scan]) => exts.map((ext) => [ext, scan])),
-);
+const SCANNERS = new Map();
+for (const [exts, scan] of SCANNER_GROUPS) {
+	for (const ext of exts) {
+		SCANNERS.set(ext, scan);
+	}
+}
 
 /**
  * Returns "path:line: text" for each directive that starts a line of a comment.
@@ -432,12 +478,14 @@ const hitsIn = (file, src, comments) => {
 };
 
 /**
+ * Scans one file and returns its hit lines.
  * @param {string} file
+ * @param {Set<string>} packageRoots
  * @returns {Promise<string[]>}
  */
-const scanFile = async (file) => {
+const scanFile = async (file, packageRoots) => {
 	const scan = SCANNERS.get(extensionOf(file));
-	if (!scan || isInsideBiomeDir(file)) {
+	if (!scan || isInSkippedDir(file, packageRoots)) {
 		return [];
 	}
 	/** @type {string} */
@@ -450,7 +498,11 @@ const scanFile = async (file) => {
 	return hitsIn(file, source, scan(source, 0, source.length));
 };
 
-const hits = (await Promise.all((await listFiles()).map(scanFile))).flat();
+const listed = await listFiles();
+const roots = packageRootsOf(listed);
+const hits = (
+	await Promise.all(listed.map((file) => scanFile(file, roots)))
+).flat();
 
 if (hits.length > 0) {
 	process.stdout.write(`${hits.join("\n")}\n`);

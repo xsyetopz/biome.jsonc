@@ -1,20 +1,19 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { capture } from "./exec.mjs";
-import { ancestors, pathExists, readText } from "./fs-util.mjs";
-import { setPath } from "./jsonc-edit.mjs";
-
-/** @typedef {import("./types.mjs").Context} Context */
+import { capture } from "./exec.ts";
+import { ancestors, pathExists, readText } from "./fs-util.ts";
+import { setPath } from "./jsonc-edit.ts";
+import type { Context } from "./types.ts";
 
 const VERSION_RE = /Version:\s*(\d+\.\d+\.\d+\S*)/;
 
 /**
- * Prefers the project's own binary, found in cwd or in a parent for workspaces;
- * the installer's own Biome is only a fallback.
- * @param {string} cwd
- * @returns {Promise<{ bin: string, own: boolean } | null>}
+ * Prefers the own binary of the project, found in cwd or in a parent for workspaces.
+ * The Biome of the installer is only a fallback.
  */
-const findBiome = async (cwd) => {
+const findBiome = async (
+	cwd: string,
+): Promise<{ bin: string; own: boolean } | null> => {
 	const bins = ancestors(cwd).map((dir) =>
 		join(dir, "node_modules", ".bin", "biome"),
 	);
@@ -34,17 +33,17 @@ const findBiome = async (cwd) => {
 };
 
 /**
- * The template pins one schema version while the install takes a range, so newer
- * CLIs would report a version mismatch on every run. Follows the binary that is found.
- * @param {Context} ctx
- * @returns {Promise<void>}
+ * Sets `$schema` in `biome.jsonc` to the version of the binary that `findBiome` finds.
+ * The function does nothing when the binary is not the own binary of the project, or when it cannot read the version.
+ * The template pins one schema version, but the install takes a range.
+ * Because of this, newer CLIs would report a version mismatch on every run.
  */
-export const syncSchemaVersion = async (ctx) => {
+export const syncSchemaVersion = async (ctx: Context): Promise<void> => {
 	const found = await findBiome(ctx.cwd);
 	if (!found?.own) {
 		return;
 	}
-	let version;
+	let version: string | undefined;
 	try {
 		version = (await capture(found.bin, ["--version"], ctx.cwd)).match(
 			VERSION_RE,
@@ -68,12 +67,11 @@ export const syncSchemaVersion = async (ctx) => {
 };
 
 /**
- * jsonc-parser edits and package managers write JSON that Biome's formatter rejects,
- * so a fresh install would fail its own `biome check`.
- * @param {Context} ctx
- * @returns {Promise<void>}
+ * Formats `biome.jsonc` and `package.json` with Biome when the run wrote them or installed packages.
+ * The edits of jsonc-parser and the package managers write JSON that the Biome formatter rejects.
+ * Because of this, a fresh install would fail its own `biome check`.
  */
-export const formatWrittenFiles = async (ctx) => {
+export const formatWrittenFiles = async (ctx: Context): Promise<void> => {
 	const files = ["biome.jsonc", "package.json"].filter(
 		(file) =>
 			ctx.writer.written.includes(file) ||
@@ -99,10 +97,12 @@ export const formatWrittenFiles = async (ctx) => {
 };
 
 /**
- * @param {string} cwd
- * @returns {Promise<{ ok: boolean, note: string }>}
+ * Checks if the Biome binary of the project supports `--error-on-warnings`.
+ * @returns `ok` is false only when `biome ci --help` does not list the flag. When the check cannot run, `ok` is true and `note` tells why.
  */
-export const supportsErrorOnWarnings = async (cwd) => {
+export const supportsErrorOnWarnings = async (
+	cwd: string,
+): Promise<{ ok: boolean; note: string }> => {
 	const bin = (await findBiome(cwd))?.bin;
 	if (!bin) {
 		return { ok: true, note: "unverified: no Biome binary found" };

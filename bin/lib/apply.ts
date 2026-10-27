@@ -1,31 +1,23 @@
 import { basename, join } from "node:path";
-import { pathExists } from "./fs-util.mjs";
-import { readPackageJson } from "./package-manager.mjs";
-
-/** @typedef {import("./types.mjs").Context} Context */
-/** @typedef {import("./types.mjs").Operation} Operation */
-/** @typedef {import("./types.mjs").PackageJson} PackageJson */
+import { pathExists } from "./fs-util.ts";
+import { readPackageJson } from "./package-manager.ts";
+import type { Context, Operation, PackageJson, ScriptOp } from "./types.ts";
 
 const UNSAFE_NAME_RE = /[^a-z0-9._~-]+/g;
 const EDGE_NAME_RE = /^[._-]+|[-]+$/g;
 
 /**
- * First of `<file>.bak`, `<file>.bak.1`, ... that does not exist yet.
- * @param {string} file
- * @param {number} [n]
- * @returns {Promise<string>}
+ * Returns the first of `<file>.bak`, `<file>.bak.1`, ... that does not exist yet.
  */
-const freeBackup = async (file, n = 0) => {
+const freeBackup = async (file: string, n = 0): Promise<string> => {
 	const candidate = n === 0 ? `${file}.bak` : `${file}.bak.${n}`;
 	return (await pathExists(candidate)) ? freeBackup(file, n + 1) : candidate;
 };
 
 /**
- * A new package.json names the project after its directory, in a form npm accepts.
- * @param {string} cwd
- * @returns {{ name: string, private: true }}
+ * Names the project of a new package.json after its directory, in a form that npm accepts.
  */
-const packageIdentity = (cwd) => ({
+const packageIdentity = (cwd: string): { name: string; private: true } => ({
 	name:
 		basename(cwd)
 			.toLowerCase()
@@ -35,11 +27,9 @@ const packageIdentity = (cwd) => ({
 });
 
 /**
- * Gives a package.json that the install step just created a name and `private`.
- * @param {Context} ctx
- * @returns {Promise<void>}
+ * Gives a name and `private` to a package.json that the install step just created.
  */
-export const applyPackageIdentity = async (ctx) => {
+export const applyPackageIdentity = async (ctx: Context): Promise<void> => {
 	const { cwd, writer } = ctx;
 	const pkg = await readPackageJson(cwd);
 	if (pkg === null) {
@@ -53,17 +43,15 @@ export const applyPackageIdentity = async (ctx) => {
 };
 
 /**
- * Backs up replaced configs, then writes every accepted file.
- * @param {Context} ctx
- * @param {Operation[]} ops
- * @returns {Promise<void>}
+ * Backs up replaced configs. Then it writes every accepted file.
  */
-export const applyFiles = async (ctx, ops) => {
+export const applyFiles = async (
+	ctx: Context,
+	ops: Operation[],
+): Promise<void> => {
 	const { cwd, writer } = ctx;
-	/** @type {string[]} */
-	const backups = [];
-	/** @type {{ path: string, content: string }[]} */
-	const writes = [];
+	const backups: string[] = [];
+	const writes: { path: string; content: string }[] = [];
 	for (const op of ops) {
 		switch (op.kind) {
 			case "backup":
@@ -85,14 +73,14 @@ export const applyFiles = async (ctx, ops) => {
 };
 
 /**
- * Applies every accepted script change in memory and writes package.json once.
- * @param {Context} ctx
- * @param {Operation[]} ops
- * @returns {Promise<void>}
+ * Applies every accepted script change in memory. Then it writes package.json one time.
  */
-export const applyScripts = async (ctx, ops) => {
+export const applyScripts = async (
+	ctx: Context,
+	ops: Operation[],
+): Promise<void> => {
 	const { cwd, writer } = ctx;
-	const changes = [];
+	const changes: ScriptOp[] = [];
 	for (const op of ops) {
 		if (op.kind === "script") {
 			changes.push(op);
@@ -101,9 +89,11 @@ export const applyScripts = async (ctx, ops) => {
 	if (changes.length === 0) {
 		return;
 	}
-	// Read after the install step, which also edits package.json.
-	/** @type {{ data: PackageJson, indent: string }} */
-	const fallback = { data: packageIdentity(cwd), indent: "\t" };
+	// Read after the install step. The install step also edits package.json.
+	const fallback: { data: PackageJson; indent: string } = {
+		data: packageIdentity(cwd),
+		indent: "\t",
+	};
 	const pkg = (await readPackageJson(cwd)) ?? fallback;
 	const scripts = { ...pkg.data.scripts };
 	for (const op of changes) {

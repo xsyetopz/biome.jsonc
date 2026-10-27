@@ -33,10 +33,10 @@ describe("installer flags", () => {
 		expect(await exists(dir, "package.json")).toBe(false);
 	});
 
-	test("--no-scripts adds no scripts but still copies the guard", async () => {
+	test("--no-scripts writes no scripts and no guard file", async () => {
 		const result = await run(dir, "--no-scripts");
 		expect(result.code).toBe(0);
-		expect(await exists(dir, ".biome", "check-suppressions.mjs")).toBe(true);
+		expect(await exists(dir, ".biome")).toBe(false);
 		expect(await exists(dir, "package.json")).toBe(false);
 	});
 
@@ -55,6 +55,7 @@ describe("installer flags", () => {
 		expect(result.code).toBe(0);
 		expect(parse(await read(dir, "biome.jsonc")).plugins).toBeUndefined();
 		const help = await run(dir, "--help");
+		expect(help.out).toStartWith("Usage: biome-json ");
 		expect(help.out).toContain("--rules <ids|all|none>");
 		expect(help.out).toContain("--plugins <ids|all|none>");
 	});

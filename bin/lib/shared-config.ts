@@ -1,52 +1,40 @@
 import { isAbsolute, join, relative, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { parse } from "jsonc-parser";
-import { ancestors, pathExists, readText } from "./fs-util.mjs";
-import { setPath } from "./jsonc-edit.mjs";
+import { ancestors, pathExists, readText } from "./fs-util.ts";
+import { setPath } from "./jsonc-edit.ts";
+import type { Context } from "./types.ts";
 
-/** @typedef {import("./types.mjs").Context} Context */
-
+/** Name of this package. */
 export const PACKAGE_NAME = "biome-json";
+/** Install spec of this package. */
 export const PACKAGE_SPEC = `${PACKAGE_NAME}@github:xsyetopz/biome.jsonc`;
+/** Name of the shared config that biome.jsonc extends. */
 export const SHARED = `${PACKAGE_NAME}/strict`;
+/** Directory of the packaged plugins in node_modules. */
 export const PLUGIN_DIR = `./node_modules/${PACKAGE_NAME}/plugins`;
-// First line of templates/strict.jsonc, which older installs copied whole.
+// This text starts line 1 of templates/strict.jsonc. Older installs copied the whole file.
 const COPY_HEADER = "// Strict Biome config for any Node repo";
 
-/**
- * @param {unknown} value
- * @returns {value is Record<string, unknown>}
- */
-const isPlainObject = (value) =>
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
 
-/**
- * @param {unknown} value
- * @returns {unknown[]}
- */
-const asArray = (value) => (Array.isArray(value) ? value : []);
+const asArray = (value: unknown): unknown[] =>
+	Array.isArray(value) ? value : [];
 
-/**
- * Whether this installer wrote the config: a full template copy, or one that extends the package.
- * @param {string} text
- * @returns {boolean}
- */
-export const isOwnConfig = (text) =>
+/** Checks if this installer wrote the config. The check is true when the text contains the template header or the config extends the package. */
+export const isOwnConfig = (text: string): boolean =>
 	text.includes(COPY_HEADER) || asArray(parse(text)?.extends).includes(SHARED);
 
 /**
- * What `value` sets differently from `base`. Under `extends`, Biome merges objects key by key
- * and lets every other value replace the extended one.
- * @param {unknown} value
- * @param {unknown} base
- * @returns {unknown}
+ * Gives what `value` sets differently from `base`.
+ * Under `extends`, Biome merges objects key by key. Every other value replaces the extended value.
  */
-const diff = (value, base) => {
+const diff = (value: unknown, base: unknown): unknown => {
 	if (!(isPlainObject(value) && isPlainObject(base))) {
 		return isDeepStrictEqual(value, base) ? undefined : value;
 	}
-	/** @type {Record<string, unknown>} */
-	const out = {};
+	const out: Record<string, unknown> = {};
 	for (const [key, item] of Object.entries(value)) {
 		const kept = diff(item, base[key]);
 		if (kept !== undefined) {
@@ -57,12 +45,10 @@ const diff = (value, base) => {
 };
 
 /**
- * Settings of `base` that `value` lacks; each starts to apply once the config extends `base`.
- * @param {unknown} value
- * @param {unknown} base
- * @returns {number}
+ * Counts the settings of `base` that `value` lacks.
+ * Each setting starts to apply when the config extends `base`.
  */
-const countMissing = (value, base) => {
+const countMissing = (value: unknown, base: unknown): number => {
 	if (!(isPlainObject(base) && (value === undefined || isPlainObject(value)))) {
 		return value === undefined ? 1 : 0;
 	}
@@ -73,18 +59,21 @@ const countMissing = (value, base) => {
 	return count;
 };
 
-/**
- * @param {unknown} data
- * @returns {{ parents: unknown[], overrides: unknown[], plugins: unknown[], rest: Record<string, unknown> }}
- */
-const split = (data) => {
+const split = (
+	data: unknown,
+): {
+	parents: unknown[];
+	overrides: unknown[];
+	plugins: unknown[];
+	rest: Record<string, unknown>;
+} => {
 	const {
 		$schema: _schema,
 		extends: parents,
 		overrides,
 		plugins,
 		...rest
-	} = isPlainObject(data) ? data : {};
+	}: Record<string, unknown> = isPlainObject(data) ? data : {};
 	return {
 		parents: asArray(parents),
 		overrides: asArray(overrides),
@@ -94,19 +83,24 @@ const split = (data) => {
 };
 
 /**
- * The repo's own part of a config this installer wrote, to keep on top of `extends`.
- * @param {string} text
- * @param {string} templateText
- * @returns {{ settings: Record<string, unknown>, parents: unknown[], plugins: unknown[], missing: number }}
+ * Gives the own part of the repo from a config that this installer wrote.
+ * The new config keeps this part on top of `extends`.
  */
-export const localSettings = (text, templateText) => {
+export const localSettings = (
+	text: string,
+	templateText: string,
+): {
+	settings: Record<string, unknown>;
+	parents: unknown[];
+	plugins: unknown[];
+	missing: number;
+} => {
 	const old = split(parse(text));
 	const template = split(parse(templateText));
 	const kept = diff(old.rest, template.rest);
 	const settings = isPlainObject(kept) ? kept : {};
 	// Biome appends `overrides` of extended files instead of replacing them.
-	/** @param {unknown[]} from @param {unknown[]} without */
-	const unmatched = (from, without) =>
+	const unmatched = (from: unknown[], without: unknown[]) =>
 		from.filter((entry) => !without.some((o) => isDeepStrictEqual(entry, o)));
 	const overrides = unmatched(old.overrides, template.overrides);
 	if (overrides.length > 0) {
@@ -122,12 +116,10 @@ export const localSettings = (text, templateText) => {
 };
 
 /**
- * Plugin paths resolve against the repo, not the extended file, so they follow wherever the
- * package was installed (a workspace hoists it to the root).
- * @param {Context} ctx
- * @returns {Promise<void>}
+ * Makes the plugin paths follow the place of the installed package.
+ * Plugin paths resolve against the repo, not the extended file. A workspace hoists the package to the root.
  */
-export const syncPluginPaths = async (ctx) => {
+export const syncPluginPaths = async (ctx: Context): Promise<void> => {
 	const dirs = ancestors(ctx.cwd).map((dir) =>
 		join(dir, "node_modules", PACKAGE_NAME),
 	);

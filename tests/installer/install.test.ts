@@ -54,18 +54,9 @@ describe("installer install step", () => {
 		expect(await readdir(dir)).toEqual(["package.json"]);
 	});
 
-	test("without a packageManager or lockfile, bun on PATH is used", async () => {
-		const result = await runInstalling(
-			dir,
-			{ tools: { bun: "exit 0" } },
-			"--dry-run",
-		);
-		expect(result.out).toContain("Would run: bun add -d @biomejs/biome@");
-	});
-
-	test("without a packageManager, lockfile or bun, npm is used", async () => {
+	test("without a packageManager or lockfile, bun is used", async () => {
 		const result = await runInstalling(dir, {}, "--dry-run");
-		expect(result.out).toContain("Would run: npm install -D @biomejs/biome@");
+		expect(result.out).toContain("Would run: bun add -d @biomejs/biome@");
 	});
 
 	test("pnpm adds -w when pnpm-workspace.yaml exists", async () => {
@@ -204,8 +195,8 @@ describe("installer install step", () => {
 		const project = await tempDir();
 		const result = await exec(
 			[
-				"node",
-				join(copy, "bin", "biome-setup.mjs"),
+				"bun",
+				join(copy, "bin", "biome-setup.ts"),
 				"--yes",
 				"--no-install",
 				"--cwd",

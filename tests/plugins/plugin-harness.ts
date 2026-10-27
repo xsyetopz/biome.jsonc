@@ -7,6 +7,7 @@ import { spawn } from "bun";
 const root = resolve(import.meta.dir, "..", "..");
 const biome = join(root, "node_modules", ".bin", "biome");
 
+/** Source snippets for one plugin: `bad` must be flagged, `good` must pass. */
 export interface PluginCases {
 	bad: string[];
 	good: string[];
@@ -58,6 +59,7 @@ const lint = async (plugins: string[], source: string) => {
 	}
 };
 
+/** Registers tests that check that a plugin flags each bad snippet and allows each good one. */
 export const describePlugin = (plugin: string, { bad, good }: PluginCases) => {
 	describe(plugin, () => {
 		for (const [i, source] of bad.entries()) {
@@ -77,6 +79,7 @@ export const describePlugin = (plugin: string, { bad, good }: PluginCases) => {
 	});
 };
 
+/** Registers tests that check the diagnostic count of several plugins that run together. */
 export const describePluginsTogether = (
 	plugins: string[],
 	cases: { source: string; count: number }[],
