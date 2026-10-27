@@ -29,7 +29,7 @@
 	"packageManager": "bun@1.4.4",
 	"dependencies": {
 		"@biomejs/biome": "^2.6.3",
-		"@inquirer/prompts": "^8.7.4",
+		"@inquirer/prompts": "^8.7.5",
 		"commander": "^15.0.0",
 		"jsonc-parser": "^3.3.1"
 	},
