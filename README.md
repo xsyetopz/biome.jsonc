@@ -44,6 +44,7 @@ An unknown id exits 1 and lists the valid ids. Without `--force`, a non-interact
 - Selecting a `nursery.*` rule installs `@biomejs/biome@~x.y.z` instead of `^x.y.z`, because a minor release can promote the rule and break config loading. Run `biome migrate --write` when you upgrade.
 - In a git repo, a package below the git top level gets `vcs.root` pointing at the top level, so the root `.gitignore` applies. Outside git, `vcs.enabled` is `false`.
 - With `@nestjs/core` or `@angular/core` in `package.json`, `style.useImportType` is `off`: its fix turns constructor-parameter imports into `import type` and breaks dependency injection. `javascript.parser.unsafeParameterDecoratorsEnabled` alone does not stop that diagnostic.
+- A config that this installer wrote (a full copy of the template from an older version, or one that already extends `biome-json/strict`) is migrated: the new `biome.jsonc` keeps only the settings and `overrides` that differ from the template. A `.biome/plugins/` copy that still matches its packaged plugin is pointed at the package, and an edited copy stays in use. The report counts template settings that the old copy lacked, which now apply. Configs from anywhere else are replaced.
 - A replaced Biome config moves to `<name>.bak`, or `<name>.bak.1`, `<name>.bak.2`, ... when that name is taken.
 - A `package.json` that the installer creates gets `name` (the directory name, lowercased and npm-safe) and `"private": true`.
 

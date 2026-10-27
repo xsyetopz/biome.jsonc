@@ -16,7 +16,7 @@ export const setPath = (text, path, value) =>
 
 /**
  * @param {string} text
- * @param {string} entry
+ * @param {unknown} entry
  * @returns {string}
  */
 export const appendPlugin = (text, entry) => {

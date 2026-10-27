@@ -10,7 +10,7 @@
  * @typedef {{ name?: string, private?: boolean, packageManager?: string, workspaces?: unknown, dependencies?: Record<string, string>, devDependencies?: Record<string, string>, scripts?: Record<string, string> } & Record<string, unknown>} PackageJson
  * @typedef {{ written: string[], put: (file: string, content: string) => Promise<void>, move: (from: string, to: string) => Promise<void> }} Writer
  * @typedef {{ skipped: string[], notes: string[], install: string }} Report
- * @typedef {{ id: string, conflict: boolean, label: string, skip: string, after: string | null }} OperationBase
+ * @typedef {{ id: string, conflict: boolean, label: string, skip: string, after: string | null, note?: string }} OperationBase
  * @typedef {OperationBase & { kind: "backup", names: string[] }} BackupOp
  * @typedef {OperationBase & { kind: "write", path: string, content: string }} WriteOp
  * @typedef {OperationBase & { kind: "script", name: string, command: string }} ScriptOp

@@ -91,6 +91,11 @@ export const run = async (opts) => {
 		...(await planScripts(ctx)),
 	];
 	const accepted = await settle(ctx, plan);
+	for (const op of accepted) {
+		if (op.note) {
+			ctx.report.notes.push(op.note);
+		}
+	}
 	const configWritten = accepted.some((op) => op.id === CONFIG_ID);
 	const createdPackage = !(await pathExists(join(cwd, "package.json")));
 	// A failed install must leave the project untouched, so it runs before any write.
