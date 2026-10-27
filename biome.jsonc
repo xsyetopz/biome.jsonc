@@ -1,5 +1,6 @@
-// This repo's own config: the shipped template plus every plugin and opt-in rule, so the
-// project runs under the strictest setup it offers. `templates/strict.jsonc` is what users get.
+// This is the config of this repo. It has the shipped template plus every plugin and opt-in rule.
+// The project runs under the strictest setup that the package offers.
+// `templates/strict.jsonc` is the config that users get.
 {
 	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
 	"extends": ["./templates/strict.jsonc"],

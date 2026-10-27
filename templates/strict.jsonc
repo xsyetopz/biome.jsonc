@@ -2,10 +2,10 @@
 //
 // For AI agents and humans:
 // - Each enabled rule is "error", so `biome check` exits non-zero on it. Fix the code.
-// - Make each check pass by changing the code, and keep this file as it is. Keep the code free of
-//   `biome-ignore`, `@ts-ignore`, `@ts-expect-error`, and `eslint-disable` comments.
-// - Run `biome check --write` for safe fixes; read each remaining diagnostic and fix it by hand.
-// - Run with `--error-on-warnings`: framework rules that Biome turns on from `package.json`
+// - Change the code to make each check pass. Keep this file as it is.
+//   Keep the code free of `biome-ignore`, `@ts-ignore`, `@ts-expect-error`, and `eslint-disable` comments.
+// - Run `biome check --write` for safe fixes. Read each remaining diagnostic and fix it by hand.
+// - Run with `--error-on-warnings`. Framework rules that Biome enables from `package.json`
 //   (React, Next.js, and others) keep their own severity, which can be "warn".
 {
 	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
@@ -47,21 +47,21 @@
 	},
 	"linter": {
 		"enabled": true,
-		// Framework domains (react, next, vue, test runners, ...) stay unset: Biome turns each on
-		// from package.json dependencies, so this file is safe in any repo.
+		// Framework domains (react, next, vue, test runners, ...) stay unset: Biome enables each one
+		// from `package.json` dependencies, so this file is safe in any repo.
 		"domains": {
 			"project": "recommended",
 			"test": "recommended",
 			"types": "recommended"
 		},
 		"rules": {
-			// Recommended rules, plus the extras below. Rules that Biome recommends at
-			// "info" or "warn" are raised to "error", because info and warn never fail a run.
+			// Recommended rules, plus the extras below. This config raises each rule that
+			// Biome recommends at "info" or "warn" to "error", because info and warn never fail a run.
 			// No nursery rules: once Biome promotes a nursery rule, its old name stops the config from loading.
 			"preset": "recommended",
 			"complexity": {
-				// Off: TS `noPropertyAccessFromIndexSignature` (tsc / bun check, TS4111) requires obj["key"]
-				// for index signatures, while this rule rewrites it to obj.key. Keep one: the type-aware TS one.
+				// Off: TS `noPropertyAccessFromIndexSignature` (`tsc` / `bun check`, TS4111) requires `obj["key"]`
+				// for index signatures, while this rule rewrites it to `obj.key`. Keep one: the type-aware TS one.
 				"useLiteralKeys": "off",
 				"noAdjacentSpacesInRegex": "error",
 				"noArguments": "error",
@@ -262,7 +262,7 @@
 			"quoteStyle": "double"
 		}
 	},
-	// Parse Vue, Svelte, and Astro templates, so imports used only in a template are not reported as unused.
+	// Parse Vue, Svelte, and Astro templates, so Biome does not report an import as unused when only a template uses it.
 	"html": {
 		"experimentalFullSupportEnabled": true
 	},
@@ -281,7 +281,7 @@
 						"useVueConsistentVBindStyle": "error",
 						"useVueConsistentVOnStyle": "error",
 						"useVueHyphenatedAttributes": "error",
-						// Off: fires on Nuxt pages and single-word names such as Home.vue.
+						// Off: fires on Nuxt pages and single-word names such as `Home.vue`.
 						"useVueMultiWordComponentNames": "off",
 						"useVueNextTickPromise": "error"
 					},
